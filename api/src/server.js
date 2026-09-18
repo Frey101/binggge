@@ -86,16 +86,17 @@ app.get('/watchlist', user, async(req, res) => {
 });
 
 // POST /watchlist : ajouter une série à la watchlist de l'utilisateur
+// POST /watchlist : ajouter une série à la watchlist de l'utilisateur
 app.post('/watchlist', user, async(req, res) => {
     const login = req.get('X-User');
     const { show_id, title } = req.body;
 
-    if (!show_id || !title) {
-        return res.status(400).json({ error: 'show_id et title requis' });
+    // Refuser si show_id manquant ou title vide / composé d'espaces
+    if (!show_id || !title || (typeof title === 'string' && title.trim() === '')) {
+        return res.status(400).json({ error: 'show_id et titre non vide requis' });
     }
 
     try {
-        // 1. Trouver l'id de l'utilisateur
         const userRes = await db.query('SELECT id FROM users WHERE login = $1', [login]);
         if (userRes.rows.length === 0) {
             return res.status(404).json({ error: 'utilisateur introuvable' });
@@ -103,9 +104,8 @@ app.post('/watchlist', user, async(req, res) => {
 
         const userId = userRes.rows[0].id;
 
-        // 2. Insérer dans la watchlist
         await db.query(
-            'INSERT INTO watchlist (user_id, show_id, title) VALUES ($1, $2, $3)', [userId, show_id, title]
+            'INSERT INTO watchlist (user_id, show_id, title) VALUES ($1, $2, $3)', [userId, show_id, title.trim()]
         );
 
         res.status(201).json({ status: 'série ajoutée' });
@@ -113,7 +113,6 @@ app.post('/watchlist', user, async(req, res) => {
         res.status(500).json({ error: 'erreur lors de l\'ajout' });
     }
 });
-
 
 
 
