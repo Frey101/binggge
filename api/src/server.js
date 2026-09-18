@@ -55,8 +55,34 @@ const user = (req, res, next) => {
 };
 
 // GET /watchlist protégé par le garde
-app.get('/watchlist', user, (req, res) => {
-    res.json([]);
+// GET /watchlist : consultation avec filtre optionnel ?seen=true|false
+app.get('/watchlist', user, async(req, res) => {
+    const login = req.get('X-User');
+    const { seen } = req.query;
+
+    try {
+        // 1. Récupérer l'utilisateur
+        const userRes = await db.query('SELECT id FROM users WHERE login = $1', [login]);
+        if (userRes.rows.length === 0) {
+            return res.status(404).json({ error: 'utilisateur introuvable' });
+        }
+
+        const userId = userRes.rows[0].id;
+
+        // 2. Construire la requête selon la présence du paramètre ?seen=
+        let queryText = 'SELECT id, show_id, title, seen FROM watchlist WHERE user_id = $1';
+        const queryParams = [userId];
+
+        if (seen !== undefined) {
+            queryParams.push(seen === 'true');
+            queryText += ' AND seen = $2';
+        }
+
+        const result = await db.query(queryText, queryParams);
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: 'erreur lors de la récupération de la watchlist' });
+    }
 });
 
 // POST /watchlist : ajouter une série à la watchlist de l'utilisateur
