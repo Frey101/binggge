@@ -59,6 +59,38 @@ app.get('/watchlist', user, (req, res) => {
     res.json([]);
 });
 
+// POST /watchlist : ajouter une série à la watchlist de l'utilisateur
+app.post('/watchlist', user, async(req, res) => {
+    const login = req.get('X-User');
+    const { show_id, title } = req.body;
+
+    if (!show_id || !title) {
+        return res.status(400).json({ error: 'show_id et title requis' });
+    }
+
+    try {
+        // 1. Trouver l'id de l'utilisateur
+        const userRes = await db.query('SELECT id FROM users WHERE login = $1', [login]);
+        if (userRes.rows.length === 0) {
+            return res.status(404).json({ error: 'utilisateur introuvable' });
+        }
+
+        const userId = userRes.rows[0].id;
+
+        // 2. Insérer dans la watchlist
+        await db.query(
+            'INSERT INTO watchlist (user_id, show_id, title) VALUES ($1, $2, $3)', [userId, show_id, title]
+        );
+
+        res.status(201).json({ status: 'série ajoutée' });
+    } catch (err) {
+        res.status(500).json({ error: 'erreur lors de l\'ajout' });
+    }
+});
+
+
+
+
 const PORT = 3000;
 if (process.env.NODE_ENV !== 'test') {
     app.listen(PORT, () => {
