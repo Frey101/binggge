@@ -1,14 +1,21 @@
 services:
+  api:
+    build: ./api
+    environment:
+      DATABASE_URL: postgres://postgres:${DB_PASS}@db:5432/binggge
+    depends_on: [db]
+    restart: unless-stopped
+
   db:
     image: postgres:16-alpine
     environment:
       POSTGRES_DB: binggge
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: binggge
+      POSTGRES_PASSWORD: ${DB_PASS}
     ports:
       - "5433:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - "pgdata:/var/lib/postgresql/data"
 
 volumes:
   pgdata:
