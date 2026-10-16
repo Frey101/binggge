@@ -62,13 +62,13 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
-      - name: Configurer la clé SSH et déployer (Correctif 2 du prof)
-        env:
-          SSH_DEPLOY_KEY: ${{ secrets.SSH_DEPLOY_KEY }}
-          LOGIN: ${{ secrets.LOGIN }}
+      - name: Déploiement via SSH
         run: |
           eval $(ssh-agent -s)
-          echo "$SSH_DEPLOY_KEY" | tr -d '\r' | ssh-add -
-          mkdir -p ~/.ssh
-          ssh-keyscan iut.cafeclaudie.fr >> ~/.ssh/known_hosts
-          ssh -A $LOGIN@iut.cafeclaudie.fr 'cd ~ && git pull && sudo binggge up -d --build'
+          echo "${{ secrets.SSH_DEPLOY_KEY }}" | tr -d '\r' | ssh-add -
+          ssh-keyscan -H iut.cafeclaudie.fr >> ~/.ssh/known_hosts
+          ssh ${{ secrets.LOGIN }}@iut.cafeclaudie.fr << 'EOF'
+            cd ~/binggge
+            git pull origin main
+            sudo binggge up -d --build
+          EOF
