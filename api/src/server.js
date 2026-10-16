@@ -8,7 +8,7 @@ app.use(express.json());
 
 // Connexion directe avec l'URI PostgreSQL du conteneur
 export const db = new Pool({
-    connectionString: 'postgresql://postgres:binggge@localhost:5433/binggge',
+    connectionString: process.env.DATABASE_URL || 'postgres://postgres:binggge@localhost:5432/binggge',
 });
 
 // GET /health

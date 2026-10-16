@@ -1,0 +1,74 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: binggge
+          POSTGRES_PASSWORD: test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 2s
+          --health-timeout 2s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://postgres:test@localhost:5432/binggge
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v4
+
+      - name: Installer Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Correctif 1 du prof adapté pour Ubuntu (le runner GitHub Actions)
+      - name: Créer les tables dans la base temporaire
+        run: |
+          sudo apt-get update && sudo apt-get install -y postgresql-client
+          until pg_isready -h localhost -p 5432; do sleep 1; done
+          psql "$DATABASE_URL" -f api/db/schema.sql
+
+      - name: Installer les dépendances et lancer les tests
+        run: |
+          cd api && npm ci
+          npm test
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v4
+
+      - name: Construire l'image Docker de l'API
+        run: |
+          SHORT_SHA=$(echo $GITHUB_SHA | cut -c1-8)
+          docker build -t binggge-api:$SHORT_SHA ./api
+
+  deploy:
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configurer la clé SSH et déployer (Correctif 2 du prof)
+        env:
+          SSH_DEPLOY_KEY: ${{ secrets.SSH_DEPLOY_KEY }}
+          LOGIN: ${{ secrets.LOGIN }}
+        run: |
+          eval $(ssh-agent -s)
+          echo "$SSH_DEPLOY_KEY" | tr -d '\r' | ssh-add -
+          mkdir -p ~/.ssh
+          ssh-keyscan iut.cafeclaudie.fr >> ~/.ssh/known_hosts
+          ssh -A $LOGIN@iut.cafeclaudie.fr 'cd ~ && git pull && sudo binggge up -d --build'
