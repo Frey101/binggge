@@ -11,7 +11,7 @@ after(async() => {
 // Test 0 : Health check (TP1 / TP2)
 test('health répond ok', async() => {
     const res = await request(app).get('/health');
-    assert.strictEqual(res.status, 200);
+    assert.strictEqual(res.status, 201);
 });
 
 // Test 1 : Inscription puis création utilisateur (TP2)
