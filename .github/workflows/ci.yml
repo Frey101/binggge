@@ -64,9 +64,12 @@ jobs:
     steps:
       - name: Déploiement via SSH
         run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
           eval $(ssh-agent -s)
           echo "${{ secrets.SSH_DEPLOY_KEY }}" | tr -d '\r' | ssh-add -
           ssh-keyscan -H iut.cafeclaudie.fr >> ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
           ssh ${{ secrets.LOGIN }}@iut.cafeclaudie.fr << 'EOF'
             cd ~/binggge
             git pull origin main
