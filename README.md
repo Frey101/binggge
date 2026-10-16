@@ -91,7 +91,7 @@ Protection active : push direct interdit sur `main`, merge bloqué si la CI éch
 - **02. Pipeline complet :** Le workflow enchaîne les tests, le build et le déploiement automatique sur le serveur distant.
 - **03. Défi gestion d'incident :** Régression simulée (attente du code HTTP 201) ayant bloqué la Pull Request sans impacter la production.
 
-![alt text](639277774704630928.png)
+![alt text](639277787691645428.png)
 
 - **04. Sécurité des secrets :** Clé SSH et identifiant stockés dans GitHub Secrets (`SSH_DEPLOY_KEY`, `LOGIN`), variables d'environnement gérées via `.env` non versionné.
 - **05. Clôture de séance :** Jalon Séance 3 fermé sur GitHub et déploiement final validé.
