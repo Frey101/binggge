@@ -8,7 +8,7 @@ app.use(express.json());
 
 // Connexion directe avec l'URI PostgreSQL du conteneur
 export const db = new Pool({
-    connectionString: 'postgresql://postgres:binggge@localhost:5433/binggge',
+    connectionString: process.env.DATABASE_URL || 'postgres://postgres:binggge@localhost:5432/binggge',
 });
 
 // GET /health
@@ -116,7 +116,7 @@ app.post('/watchlist', user, async(req, res) => {
 
 
 
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 if (process.env.NODE_ENV !== 'test') {
     app.listen(PORT, () => {
         console.log(`Serveur démarré sur http://localhost:${PORT}`);
