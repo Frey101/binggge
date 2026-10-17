@@ -1,10 +1,16 @@
 import express from 'express';
 import pg from 'pg';
+import cors from 'cors';
 
 const { Pool } = pg;
 const app = express();
 
 app.use(express.json());
+app.use(cors({
+    origin: '*',
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'X-User']
+}));
 
 // Connexion directe avec l'URI PostgreSQL du conteneur
 export const db = new Pool({
@@ -54,7 +60,6 @@ const user = (req, res, next) => {
         res.status(401).json({ error: 'non authentifié' });
 };
 
-// GET /watchlist protégé par le garde
 // GET /watchlist : consultation avec filtre optionnel ?seen=true|false
 app.get('/watchlist', user, async(req, res) => {
     const login = req.get('X-User');
@@ -86,7 +91,6 @@ app.get('/watchlist', user, async(req, res) => {
 });
 
 // POST /watchlist : ajouter une série à la watchlist de l'utilisateur
-// POST /watchlist : ajouter une série à la watchlist de l'utilisateur
 app.post('/watchlist', user, async(req, res) => {
     const login = req.get('X-User');
     const { show_id, title } = req.body;
@@ -110,8 +114,10 @@ app.post('/watchlist', user, async(req, res) => {
 
         res.status(201).json({ status: 'série ajoutée' });
     } catch (err) {
+        console.error('Erreur SQL détaillée :', err); // <--- Ajoute cette ligne
         res.status(500).json({ error: 'erreur lors de l\'ajout' });
     }
+
 });
 
 
