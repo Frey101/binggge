@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Binggge - Cinéma</title>
+    <link rel="stylesheet" href="style.css">
+
+
+</head>
+
+<body>
+
+    <header>
+        <h1>Binggge</h1>
+        <div class="status-container">Statut API : <strong id="api-status">Vérification...</strong></div>
+
+        <!-- Petit header de navigation (Onglets) -->
+        <nav class="nav-tabs">
+            <button class="nav-btn active" onclick="switchTab('search')">Recherche</button>
+            <button class="nav-btn" onclick="switchTab('watchlist')">Ma Watchlist</button>
+        </nav>
+    </header>
+
+    <!-- SECTION 1 : RECHERCHE -->
+    <section id="search-view" class="view-section active">
+        <div class="search-box">
+            <input type="text" id="query" placeholder="Rechercher une série..." onkeypress="handleKeyPress(event)">
+            <button class="action-btn" onclick="searchShows()">Rechercher</button>
+        </div>
+        <ul id="results" class="grid-container"></ul>
+    </section>
+
+    <!-- SECTION 2 : WATCHLIST -->
+    <section id="watchlist-view" class="view-section">
+        <h2 style="text-align: center; margin-bottom: 1.5rem; color: #fff;">Films et séries favoris</h2>
+        <ul id="watchlist-results" class="grid-container"></ul>
+    </section>
+
+    <div class="footer">
+        <p>&copy; 2026 Binggge. Tous droits réservés.</p>
+    </div>
+
+    <script>
+        const API_URL = 'https://iut.cafeclaudie.fr/Frey101';
+        const CURRENT_USER = 'Frey101';
+
+        // 1. Vérification du healthcheck au chargement
+
+        fetch(`${API_URL}/health`)
+            .then(res => res.json())
+            .then(data => {
+                const el = document.getElementById('api-status');
+                el.textContent = data.status === 'ok' ? 'En ligne' : 'Erreur';
+                el.style.color = data.status === 'ok' ? '#46d369' : '#e50914';
+            })
+            .catch(() => {
+                const el = document.getElementById('api-status');
+                el.textContent = 'Déconnecté';
+                el.style.color = '#e50914';
+            });
+
+        // Gestion des onglets
+        function switchTab(tabName) {
+            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.view-section').forEach(sec => sec.classList.remove('active'));
+
+            if (tabName === 'search') {
+                document.querySelector('.nav-tabs button:nth-child(1)').classList.add('active');
+                document.getElementById('search-view').classList.add('active');
+            } else if (tabName === 'watchlist') {
+                document.querySelector('.nav-tabs button:nth-child(2)').classList.add('active');
+                document.getElementById('watchlist-view').classList.add('active');
+                loadWatchlist(); // Charger les données dès qu'on clique sur l'onglet
+            }
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                searchShows();
+            }
+        }
+
+        // 2. Recherche de séries
+        async function searchShows() {
+            const q = document.getElementById('query').value.trim();
+            if (!q) return;
+
+            const list = document.getElementById('results');
+            list.innerHTML = '<li class="message">Chargement des projecteurs...</li>';
+
+            try {
+                const res = await fetch(`${API_URL}/shows?q=${encodeURIComponent(q)}`);
+                let shows = await res.json();
+
+                list.innerHTML = '';
+                if (shows.shows) shows = shows.shows;
+
+                if (!shows || shows.length === 0) {
+                    list.innerHTML = '<li class="message">Aucune séance trouvée pour cette recherche.</li>';
+                    return;
+                }
+
+                shows.forEach(show => {
+                    const li = document.createElement('li');
+                    li.className = 'card';
+                    const imageSrc = show.image || 'https://via.placeholder.com/200x280?text=No+Cover';
+                    const rawSummary = show.summary || show.description || show.overview || 'Aucun synopsis disponible.';
+                    const cleanSummary = rawSummary.replace(/<[^>]*>/g, '');
+
+                    // Échappement propre du titre pour éviter les bugs de guillemets dans le HTML
+                    const safeTitle = show.title.replace(/'/g, "\\'");
+
+                    li.innerHTML = `
+                        <details>
+                            <summary>
+                                <img src="${imageSrc}" alt="${show.title}">
+                                <div class="show-info">
+                                    <h3>${show.title}</h3>
+                                    <span>(${show.year || 'Inconnue'})</span>
+                                </div>
+                            </summary>
+                            <div class="synopsis">${cleanSummary}</div>
+                        </details>
+                        <button class="card-btn" onclick="addToWatchlist(${show.id}, '${encodeURIComponent(show.title)}')">Ajouter à la watchlist</button>
+                    `;
+                    list.appendChild(li);
+                });
+            } catch (err) {
+                list.innerHTML = '<li class="message" style="color: #e50914;">Erreur de connexion avec le serveur.</li>';
+            }
+        }
+
+        // 3. Ajouter une série à la watchlist (avec l'en-tête X-User exigé par le TP)
+        async function addToWatchlist(showId, encodedTitle) {
+            const title = decodeURIComponent(encodedTitle);
+
+            try {
+                const res = await fetch(`${API_URL}/watchlist`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-User': 'Frey101' // Indispensable pour ne pas avoir d'erreur 401
+                    },
+                    body: JSON.stringify({
+                        show_id: Number(showId), // Doit être show_id (avec underscore)
+                        title: title // Obligatoire, sinon erreur 400
+                    })
+                });
+
+                if (res.ok) {
+                    alert(`"${title}" a été ajoutée à la watchlist !`);
+                } else {
+                    const err = await res.json().catch(() => ({}));
+                    alert(`Erreur (${res.status}) : ${err.error || 'Impossible d\'ajouter'}`);
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Erreur réseau ou problème CORS.');
+            }
+        }
+        // 4. Charger et afficher la watchlist dans le deuxième onglet
+        // 4. Charger et afficher la watchlist avec récupération des affiches TVMaze
+        async function loadWatchlist() {
+            const list = document.getElementById('watchlist-results');
+            list.innerHTML = '<li class="message">Chargement de votre watchlist...</li>';
+
+            try {
+                const res = await fetch(`${API_URL}/watchlist`, {
+                    headers: {
+                        'X-User': CURRENT_USER
+                    }
+                });
+
+                if (!res.ok) {
+                    throw new Error('Erreur d\'accès');
+                }
+
+                const watchlist = await res.json();
+                list.innerHTML = '';
+
+                if (!watchlist || watchlist.length === 0) {
+                    list.innerHTML = '<li class="message">Votre watchlist est vide pour le moment.</li>';
+                    return;
+                }
+
+                // Récupérer en parallèle les métadonnées (affiche, année, synopsis) sur TVMaze
+                const showsWithCovers = await Promise.all(
+                    watchlist.map(async(item) => {
+                        try {
+                            const tvmazeRes = await fetch(`https://api.tvmaze.com/shows/${item.show_id}`);
+                            if (tvmazeRes.ok) {
+                                const showData = await tvmazeRes.json();
+                                return {
+                                    ...item,
+                                    image: showData.image ? showData.image.medium : null,
+                                    year: showData.premiered ? showData.premiered.split('-')[0] : null,
+                                    summary: showData.summary ? showData.summary.replace(/<[^>]*>/g, '') : 'Aucun synopsis disponible.'
+                                };
+                            }
+                        } catch (e) {
+                            console.warn(`Impossible de charger les infos TVMaze pour l'ID ${item.show_id}`);
+                        }
+                        return item;
+                    })
+                );
+
+                showsWithCovers.forEach(item => {
+                    const li = document.createElement('li');
+                    li.className = 'card';
+                    // Placeholder SVG fiable si aucune jaquette n'est trouvée
+                    const fallbackImage = 'https://placehold.co/200x280/1f2937/9ca3af?text=Pas+d+affiche';
+                    const imageSrc = item.image || fallbackImage;
+
+                    li.innerHTML = `
+                <details>
+                    <summary>
+                        <img src="${imageSrc}" alt="${item.title}">
+                        <div class="show-info">
+                            <h3>${item.title}</h3>
+                            <span>${item.year ? '(' + item.year + ')' : 'ID : ' + item.show_id}</span>
+                        </div>
+                    </summary>
+                    <div class="synopsis">${item.summary || 'Ajouté à vos favoris personnels.'}</div>
+                </details>
+            `;
+                    list.appendChild(li);
+                });
+            } catch (err) {
+                list.innerHTML = '<li class="message" style="color: #e50914;">Impossible de charger la watchlist (Vérifiez l\'authentification).</li>';
+            }
+        }
+    </script>
+
+</body>
+
+</html>

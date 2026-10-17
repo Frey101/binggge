@@ -1,6 +1,8 @@
 services:
   api:
     build: ./api
+    ports:
+      - "3000:3000"
     environment:
       DATABASE_URL: postgres://postgres:${DB_PASS}@db:5432/binggge
     depends_on: [db]

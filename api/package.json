@@ -8,6 +8,7 @@
         "test": "node --test --test-force-exit tests/server.test.js"
     },
     "dependencies": {
+        "cors": "^2.8.6",
         "express": "^4.19.2",
         "pg": "^8.23.0",
         "supertest": "^7.3.1"
