@@ -148,6 +148,37 @@ app.delete('/watchlist/:id', user, async(req, res) => {
     }
 });
 
+
+// PUT /watchlist/:id/seen : Mettre à jour le statut "vu"
+app.put('/watchlist/:id/seen', user, async(req, res) => {
+    const login = req.get('X-User');
+    const { id } = req.params;
+    const { seen } = req.body; // doit être un booléen (true ou false)
+
+    try {
+        const userRes = await db.query('SELECT id FROM users WHERE login = $1', [login]);
+        if (userRes.rows.length === 0) {
+            return res.status(404).json({ error: 'utilisateur introuvable' });
+        }
+
+        const userId = userRes.rows[0].id;
+
+        const result = await db.query(
+            'UPDATE watchlist SET seen = $1 WHERE (id::text = $2 OR show_id::text = $2) AND user_id = $3 RETURNING *', [seen, id, userId]
+        );
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ error: 'Série non trouvée dans la watchlist' });
+        }
+
+        res.json({ status: 'Mise à jour réussie', seen: result.rows[0].seen });
+    } catch (err) {
+        console.error('Erreur SQL PUT:', err);
+        res.status(500).json({ error: 'Erreur lors de la mise à jour' });
+    }
+});
+
+
 const PORT = process.env.PORT || 3000;
 if (process.env.NODE_ENV !== 'test') {
     app.listen(PORT, () => {

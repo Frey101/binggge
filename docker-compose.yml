@@ -7,7 +7,11 @@ services:
       DATABASE_URL: postgres://postgres:${DB_PASS}@db:5432/binggge
     depends_on: [db]
     restart: unless-stopped
-
+  web:
+      build: ./web
+      expose:
+        - "80"
+      restart: unless-stopped
   db:
     image: postgres:16-alpine
     environment:
