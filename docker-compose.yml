@@ -1,13 +1,17 @@
 services:
   api:
     build: ./api
-    ports:
-      - "3000:3000"
+    expose:
+      - "3000"
     environment:
       DATABASE_URL: postgres://postgres:${DB_PASS}@db:5432/binggge
     depends_on: [db]
     restart: unless-stopped
-
+  web:
+      build: ./web
+      expose:
+        - "80"
+      restart: unless-stopped
   db:
     image: postgres:16-alpine
     environment:

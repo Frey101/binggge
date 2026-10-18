@@ -6,22 +6,41 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Binggge - Cinéma</title>
     <link rel="stylesheet" href="style.css">
-
-
 </head>
 
-<body>
+<body onload="initAuth()">
 
-    <header>
-        <h1>Binggge</h1>
-        <div class="status-container">Statut API : <strong id="api-status">Vérification...</strong></div>
-
-        <!-- Petit header de navigation (Onglets) -->
-        <nav class="nav-tabs">
-            <button class="nav-btn active" onclick="switchTab('search')">Recherche</button>
-            <button class="nav-btn" onclick="switchTab('watchlist')">Ma Watchlist</button>
-        </nav>
+    <!-- 1.  HEADER PRINCIPAL -->
+    <header style="background-color: #141414; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e50914;">
+        <h1 style="color: #e50914; margin: 0; font-size: 2.2rem; font-weight: bold; letter-spacing: 2px;">BINGGGE</h1>
+        <div class="status-container" style="color: #fff; font-size: 0.9rem;">
+            Statut API : <strong id="api-status">Vérification...</strong>
+        </div>
     </header>
+
+    <!-- 2. BARRE DE CONNEXION / INSCRIPTION -->
+    <div style="background-color: #1f1f1f; padding: 12px 20px; display: flex; justify-content: flex-start; align-items: center; border-bottom: 1px solid #333;">
+
+        <!-- Formulaire quand on n'est PAS connecté -->
+        <div id="auth-section" style="display: flex; gap: 10px; align-items: center;">
+            <input type="text" id="username-input" placeholder="Votre pseudo (ex: anna)" style="padding: 8px; border-radius: 4px; border: 1px solid #444; background: #333; color: white; outline: none;">
+            <button onclick="handleLogin()" style="padding: 8px 15px; cursor: pointer; border-radius: 4px; border: none; background: #fff; color: #000; font-weight: bold;">Connexion</button>
+            <button onclick="handleRegister()" style="padding: 8px 15px; cursor: pointer; border-radius: 4px; border: none; background: #e50914; color: white; font-weight: bold;">Inscription</button>
+        </div>
+
+        <!-- Espace quand on EST connecté -->
+        <div id="user-section" style="display: none; gap: 15px; align-items: center; color: white;">
+            <span>👤 Connecté : <strong id="current-user-display" style="color: #e50914; font-size: 1.1rem;"></strong></span>
+            <button onclick="handleLogout()" style="padding: 6px 12px; cursor: pointer; background: transparent; color: #ccc; border: 1px solid #555; border-radius: 4px;">Déconnexion</button>
+        </div>
+
+    </div>
+
+    <!-- 3. NAVIGATION (Onglets) -->
+    <nav class="nav-tabs" style="margin-top: 15px;">
+        <button class="nav-btn active" onclick="switchTab('search')">Recherche</button>
+        <button class="nav-btn" onclick="switchTab('watchlist')">Ma Watchlist</button>
+    </nav>
 
     <!-- SECTION 1 : RECHERCHE -->
     <section id="search-view" class="view-section active">
@@ -44,9 +63,76 @@
 
     <script>
         const API_URL = 'https://iut.cafeclaudie.fr/Frey101';
-        const CURRENT_USER = 'Frey101';
+        let CURRENT_USER = '';
 
-        // 1. Vérification du healthcheck au chargement
+        // -- SYSTÈME D'AUTHENTIFICATION --
+
+        function initAuth() {
+            // Optionnel : tu pourrais lire le localStorage ici pour rester connecté
+            updateAuthUI();
+        }
+
+        function updateAuthUI() {
+            if (CURRENT_USER) {
+                document.getElementById('auth-section').style.display = 'none';
+                document.getElementById('user-section').style.display = 'flex';
+                document.getElementById('current-user-display').textContent = CURRENT_USER;
+            } else {
+                document.getElementById('auth-section').style.display = 'flex';
+                document.getElementById('user-section').style.display = 'none';
+                document.getElementById('watchlist-results').innerHTML = '<li class="message">Veuillez vous connecter pour voir votre watchlist.</li>';
+            }
+        }
+
+        function handleLogin() {
+            const username = document.getElementById('username-input').value.trim();
+            if (!username) return alert('Veuillez entrer un pseudo pour vous connecter.');
+
+            CURRENT_USER = username;
+            updateAuthUI();
+
+            // Si on est sur l'onglet watchlist, on la charge pour ce nouvel utilisateur
+            if (document.getElementById('watchlist-view').classList.contains('active')) {
+                loadWatchlist();
+            }
+        }
+
+        async function handleRegister() {
+            const username = document.getElementById('username-input').value.trim();
+            if (!username) return alert('Veuillez entrer un pseudo pour vous inscrire.');
+
+            try {
+                const res = await fetch(`${API_URL}/register`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        login: username
+                    })
+                });
+
+                if (res.ok || res.status === 201) {
+                    alert(`Compte "${username}" créé avec succès ! Vous êtes maintenant connecté.`);
+                    CURRENT_USER = username;
+                    updateAuthUI();
+                } else {
+                    const err = await res.json().catch(() => ({}));
+                    alert(`Erreur lors de l'inscription : ${err.error || 'Pseudo peut-être déjà pris'}`);
+                }
+            } catch (err) {
+                alert('Erreur réseau impossible de contacter l\'API.');
+            }
+        }
+
+        function handleLogout() {
+            CURRENT_USER = '';
+            document.getElementById('username-input').value = '';
+            updateAuthUI();
+            switchTab('search'); // Retour à l'accueil
+        }
+
+        // -- VÉRIFICATION API --
 
         fetch(`${API_URL}/health`)
             .then(res => res.json())
@@ -61,7 +147,8 @@
                 el.style.color = '#e50914';
             });
 
-        // Gestion des onglets
+        // -- GESTION DES ONGLETS --
+
         function switchTab(tabName) {
             document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
             document.querySelectorAll('.view-section').forEach(sec => sec.classList.remove('active'));
@@ -72,7 +159,12 @@
             } else if (tabName === 'watchlist') {
                 document.querySelector('.nav-tabs button:nth-child(2)').classList.add('active');
                 document.getElementById('watchlist-view').classList.add('active');
-                loadWatchlist(); // Charger les données dès qu'on clique sur l'onglet
+
+                if (CURRENT_USER) {
+                    loadWatchlist();
+                } else {
+                    document.getElementById('watchlist-results').innerHTML = '<li class="message" style="color:#e50914;">Veuillez vous connecter pour voir votre watchlist.</li>';
+                }
             }
         }
 
@@ -82,7 +174,8 @@
             }
         }
 
-        // 2. Recherche de séries
+        // -- RECHERCHE TVMAZE --
+
         async function searchShows() {
             const q = document.getElementById('query').value.trim();
             if (!q) return;
@@ -105,12 +198,9 @@
                 shows.forEach(show => {
                     const li = document.createElement('li');
                     li.className = 'card';
-                    const imageSrc = show.image || 'https://via.placeholder.com/200x280?text=No+Cover';
+                    const imageSrc = show.image || 'https://placehold.co/200x280/1f2937/9ca3af?text=Pas+d+affiche';
                     const rawSummary = show.summary || show.description || show.overview || 'Aucun synopsis disponible.';
                     const cleanSummary = rawSummary.replace(/<[^>]*>/g, '');
-
-                    // Échappement propre du titre pour éviter les bugs de guillemets dans le HTML
-                    const safeTitle = show.title.replace(/'/g, "\\'");
 
                     li.innerHTML = `
                         <details>
@@ -123,7 +213,9 @@
                             </summary>
                             <div class="synopsis">${cleanSummary}</div>
                         </details>
-                        <button class="card-btn" onclick="addToWatchlist(${show.id}, '${encodeURIComponent(show.title)}')">Ajouter à la watchlist</button>
+                        <button class="card-btn" onclick="addToWatchlist(${show.id}, '${encodeURIComponent(show.title)}')">
+                            Ajouter à la watchlist
+                        </button>
                     `;
                     list.appendChild(li);
                 });
@@ -132,8 +224,13 @@
             }
         }
 
-        // 3. Ajouter une série à la watchlist (avec l'en-tête X-User exigé par le TP)
+        // -- ACTIONS WATCHLIST --
+
         async function addToWatchlist(showId, encodedTitle) {
+            if (!CURRENT_USER) {
+                return alert("Vous devez être connecté pour ajouter une série à votre watchlist.");
+            }
+
             const title = decodeURIComponent(encodedTitle);
 
             try {
@@ -141,28 +238,54 @@
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-User': 'Frey101' // Indispensable pour ne pas avoir d'erreur 401
+                        'X-User': CURRENT_USER
                     },
                     body: JSON.stringify({
-                        show_id: Number(showId), // Doit être show_id (avec underscore)
-                        title: title // Obligatoire, sinon erreur 400
+                        show_id: Number(showId),
+                        title: title
                     })
                 });
 
                 if (res.ok) {
-                    alert(`"${title}" a été ajoutée à la watchlist !`);
+                    alert(`"${title}" a été ajoutée à la watchlist de ${CURRENT_USER} !`);
                 } else {
                     const err = await res.json().catch(() => ({}));
                     alert(`Erreur (${res.status}) : ${err.error || 'Impossible d\'ajouter'}`);
                 }
             } catch (err) {
-                console.error(err);
-                alert('Erreur réseau ou problème CORS.');
+                alert('Erreur réseau ou problème de communication avec le serveur.');
             }
         }
-        // 4. Charger et afficher la watchlist dans le deuxième onglet
-        // 4. Charger et afficher la watchlist avec récupération des affiches TVMaze
+
+        async function removeFromWatchlist(id) {
+            if (!CURRENT_USER) return;
+
+            if (!confirm('Voulez-vous retirer cette série de votre watchlist ?')) {
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_URL}/watchlist/${id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-User': CURRENT_USER
+                    }
+                });
+
+                if (!res.ok) {
+                    const errData = await res.json().catch(() => ({}));
+                    throw new Error(`HTTP ${res.status}: ${errData.error || res.statusText}`);
+                }
+
+                loadWatchlist();
+            } catch (err) {
+                alert(`Impossible de supprimer la série : ${err.message}`);
+            }
+        }
+
         async function loadWatchlist() {
+            if (!CURRENT_USER) return;
+
             const list = document.getElementById('watchlist-results');
             list.innerHTML = '<li class="message">Chargement de votre watchlist...</li>';
 
@@ -174,18 +297,17 @@
                 });
 
                 if (!res.ok) {
-                    throw new Error('Erreur d\'accès');
+                    throw new Error('Erreur d\'accès à la watchlist');
                 }
 
                 const watchlist = await res.json();
                 list.innerHTML = '';
 
                 if (!watchlist || watchlist.length === 0) {
-                    list.innerHTML = '<li class="message">Votre watchlist est vide pour le moment.</li>';
+                    list.innerHTML = `<li class="message">La watchlist de ${CURRENT_USER} est vide pour le moment.</li>`;
                     return;
                 }
 
-                // Récupérer en parallèle les métadonnées (affiche, année, synopsis) sur TVMaze
                 const showsWithCovers = await Promise.all(
                     watchlist.map(async(item) => {
                         try {
@@ -200,7 +322,7 @@
                                 };
                             }
                         } catch (e) {
-                            console.warn(`Impossible de charger les infos TVMaze pour l'ID ${item.show_id}`);
+                            // Erreur silencieuse pour TVMaze
                         }
                         return item;
                     })
@@ -209,26 +331,68 @@
                 showsWithCovers.forEach(item => {
                     const li = document.createElement('li');
                     li.className = 'card';
-                    // Placeholder SVG fiable si aucune jaquette n'est trouvée
                     const fallbackImage = 'https://placehold.co/200x280/1f2937/9ca3af?text=Pas+d+affiche';
                     const imageSrc = item.image || fallbackImage;
+                    const deleteId = item.id !== undefined ? item.id : item.show_id;
+                    const isSeen = item.seen ? 'checked' : '';
+                    const seenText = item.seen ? '👁️ Série vue' : '👀 À regarder';
+
+
 
                     li.innerHTML = `
-                <details>
-                    <summary>
-                        <img src="${imageSrc}" alt="${item.title}">
-                        <div class="show-info">
-                            <h3>${item.title}</h3>
-                            <span>${item.year ? '(' + item.year + ')' : 'ID : ' + item.show_id}</span>
+                        <details>
+                            <summary>
+                                <img src="${imageSrc}" alt="${item.title}">
+                                <div class="show-info">
+                                    <h3>${item.title}</h3>
+                                    <span>${item.year ? '(' + item.year + ')' : 'ID : ' + item.show_id}</span>
+                                </div>
+                            </summary>
+                            <div class="synopsis">${item.summary || 'Ajouté à vos favoris personnels.'}</div>
+                        </details>
+                        
+                        <!-- Zone d'actions -->
+                        <div style="margin-top: 10px; display: flex; flex-direction: column; gap: 8px;">
+                            <label style="cursor: pointer; display: flex; align-items: center; gap: 8px; color: white;">
+                                <input type="checkbox" ${isSeen} onchange="toggleSeen(${deleteId}, ${item.seen})">
+                                ${seenText}
+                            </label>
+                            <button class="card-btn" style="background-color: #e50914;" onclick="removeFromWatchlist(${deleteId})">
+                                Retirer de la watchlist
+                            </button>
                         </div>
-                    </summary>
-                    <div class="synopsis">${item.summary || 'Ajouté à vos favoris personnels.'}</div>
-                </details>
-            `;
+                    `;
                     list.appendChild(li);
                 });
             } catch (err) {
-                list.innerHTML = '<li class="message" style="color: #e50914;">Impossible de charger la watchlist (Vérifiez l\'authentification).</li>';
+                list.innerHTML = `<li class="message" style="color: #e50914;">Le compte "${CURRENT_USER}" n'existe pas en base de données. Inscrivez-vous d'abord !</li>`;
+            }
+        }
+
+
+        async function toggleSeen(id, currentStatus) {
+            if (!CURRENT_USER) return;
+            const newStatus = !currentStatus; // Inverse le statut
+
+            try {
+                const res = await fetch(`${API_URL}/watchlist/${id}/seen`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-User': CURRENT_USER
+                    },
+                    body: JSON.stringify({
+                        seen: newStatus
+                    })
+                });
+
+                if (res.ok) {
+                    loadWatchlist(); // Recharge pour afficher le nouveau statut
+                } else {
+                    alert("Erreur lors de la mise à jour.");
+                }
+            } catch (err) {
+                alert("Erreur réseau.");
             }
         }
     </script>
