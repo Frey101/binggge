@@ -6,6 +6,10 @@ const { Pool } = pg;
 const app = express();
 
 app.use(express.json());
+app.use(express.static('public')); // Permet de lire index.html et style.css
+
+
+
 
 // 1. Autoriser DELETE dans CORS
 app.use(cors({

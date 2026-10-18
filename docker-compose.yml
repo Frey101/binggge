@@ -4,24 +4,19 @@ services:
     expose:
       - "3000"
     environment:
-      DATABASE_URL: postgres://postgres:${DB_PASS}@db:5432/binggge
-    depends_on: [db]
+      DATABASE_URL: postgres://postgres:${DB_PASS:-binggge}@db:5432/binggge
+    depends_on:
+      - db
     restart: unless-stopped
-  web:
-      build: ./web
-      expose:
-        - "80"
-      restart: unless-stopped
+
   db:
     image: postgres:16-alpine
     environment:
       POSTGRES_DB: binggge
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${DB_PASS}
-    ports:
-      - "5433:5432"
+      POSTGRES_PASSWORD: ${DB_PASS:-binggge}
     volumes:
-      - "pgdata:/var/lib/postgresql/data"
+      - pgdata:/var/lib/postgresql/data
 
 volumes:
   pgdata:
