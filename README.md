@@ -146,8 +146,8 @@ npm test
 5. L'ajout d'une série avec un titre vide est rejeté avec une erreur 400.
 
 
-![alt text](image.png)
-![alt text](image-2.png)
+![alt text](./image/image.png)
+![alt text](./image/image-2.png)
 
 ---
 
@@ -174,7 +174,7 @@ Le pipeline GitHub Actions (`.github/workflows/ci.yml`) s'exécute automatiqueme
 
 Dans le cadre du défi qualité, une régression volontaire a été injectée (attente erronée d'un code de retour) afin d'éprouver la robustesse de la chaîne d'intégration continue :
 
-![Gestion d'incident](639277787691645428.png)
+![Gestion d'incident](./image/639277787691645428.png)
 
 Le job de test a immédiatement échoué en rouge sur GitHub Actions, bloquant automatiquement le merge de la Pull Request et empêchant tout déploiement corrupteur sur le serveur distant en production.
 
