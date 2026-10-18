@@ -6,9 +6,11 @@ const { Pool } = pg;
 const app = express();
 
 app.use(express.json());
+
+// 1. Autoriser DELETE dans CORS
 app.use(cors({
     origin: '*',
-    methods: ['GET', 'POST', 'OPTIONS'],
+    methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'X-User']
 }));
 
@@ -34,6 +36,7 @@ app.get('/shows', async(req, res) => {
             title: item.show.name,
             year: item.show.premiered ? item.show.premiered.split('-')[0] : null,
             image: item.show.image ? item.show.image.medium : null,
+            summary: item.show.summary // <-- AJOUTE CETTE LIGNE ICI
         }));
         res.json(shows);
     } catch (err) {
@@ -41,7 +44,7 @@ app.get('/shows', async(req, res) => {
     }
 });
 
-// POST /register (diapo 03)
+// POST /register
 app.post('/register', async(req, res) => {
     try {
         await db.query(
@@ -53,20 +56,19 @@ app.post('/register', async(req, res) => {
     }
 });
 
-// Garde des routes privées : vérifie l'en-tête X-User (diapo 03)
+// Garde des routes privées : vérifie l'en-tête X-User
 const user = (req, res, next) => {
     req.get('X-User') ?
         next() :
         res.status(401).json({ error: 'non authentifié' });
 };
 
-// GET /watchlist : consultation avec filtre optionnel ?seen=true|false
+// GET /watchlist
 app.get('/watchlist', user, async(req, res) => {
     const login = req.get('X-User');
     const { seen } = req.query;
 
     try {
-        // 1. Récupérer l'utilisateur
         const userRes = await db.query('SELECT id FROM users WHERE login = $1', [login]);
         if (userRes.rows.length === 0) {
             return res.status(404).json({ error: 'utilisateur introuvable' });
@@ -74,7 +76,6 @@ app.get('/watchlist', user, async(req, res) => {
 
         const userId = userRes.rows[0].id;
 
-        // 2. Construire la requête selon la présence du paramètre ?seen=
         let queryText = 'SELECT id, show_id, title, seen FROM watchlist WHERE user_id = $1';
         const queryParams = [userId];
 
@@ -90,12 +91,11 @@ app.get('/watchlist', user, async(req, res) => {
     }
 });
 
-// POST /watchlist : ajouter une série à la watchlist de l'utilisateur
+// POST /watchlist
 app.post('/watchlist', user, async(req, res) => {
     const login = req.get('X-User');
     const { show_id, title } = req.body;
 
-    // Refuser si show_id manquant ou title vide / composé d'espaces
     if (!show_id || !title || (typeof title === 'string' && title.trim() === '')) {
         return res.status(400).json({ error: 'show_id et titre non vide requis' });
     }
@@ -114,13 +114,39 @@ app.post('/watchlist', user, async(req, res) => {
 
         res.status(201).json({ status: 'série ajoutée' });
     } catch (err) {
-        console.error('Erreur SQL détaillée :', err); // <--- Ajoute cette ligne
+        console.error('Erreur SQL détaillée :', err);
         res.status(500).json({ error: 'erreur lors de l\'ajout' });
     }
-
 });
 
+// DELETE /watchlist/:id (Suppression par show_id ou par id)
+app.delete('/watchlist/:id', user, async(req, res) => {
+    const login = req.get('X-User');
+    const { id } = req.params;
 
+    try {
+        const userRes = await db.query('SELECT id FROM users WHERE login = $1', [login]);
+        if (userRes.rows.length === 0) {
+            return res.status(404).json({ error: 'utilisateur introuvable' });
+        }
+
+        const userId = userRes.rows[0].id;
+
+        // Supprime par clé primaire id ou par show_id pour cet utilisateur
+        const result = await db.query(
+            'DELETE FROM watchlist WHERE (id::text = $1 OR show_id::text = $1) AND user_id = $2 RETURNING *', [id, userId]
+        );
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ error: 'Série non trouvée dans la watchlist' });
+        }
+
+        res.status(204).send();
+    } catch (err) {
+        console.error('Erreur SQL DELETE:', err);
+        res.status(500).json({ error: 'Erreur lors de la suppression' });
+    }
+});
 
 const PORT = process.env.PORT || 3000;
 if (process.env.NODE_ENV !== 'test') {
